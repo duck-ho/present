@@ -3,9 +3,16 @@ from typing import List
 from urllib.parse import quote
 
 import feedparser
+import requests
 from bs4 import BeautifulSoup
 
 from .base import Article
+
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def _parse_date(entry) -> datetime | None:
@@ -33,7 +40,12 @@ def _build_url(query: str, language: str) -> str:
 
 def collect_google_news(query: str, limit: int = 10, language: str = "ko") -> List[Article]:
     url = _build_url(query, language)
-    feed = feedparser.parse(url)
+    try:
+        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=15)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
+    except requests.RequestException:
+        return []
     articles: List[Article] = []
     for entry in feed.entries[:limit]:
         title = getattr(entry, "title", "").strip()

@@ -3,9 +3,16 @@ from typing import List
 from urllib.parse import quote
 
 import feedparser
+import requests
 from bs4 import BeautifulSoup
 
 from .base import Article
+
+_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def _parse_date(entry) -> datetime | None:
@@ -32,7 +39,12 @@ def collect_naver_news(query: str, limit: int = 10) -> List[Article]:
     """
     q = quote(f"{query} site:news.naver.com")
     url = f"https://news.google.com/rss/search?q={q}&hl=ko&gl=KR&ceid=KR:ko"
-    feed = feedparser.parse(url)
+    try:
+        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=15)
+        resp.raise_for_status()
+        feed = feedparser.parse(resp.content)
+    except requests.RequestException:
+        return []
     articles: List[Article] = []
     for entry in feed.entries[:limit]:
         title = getattr(entry, "title", "").strip()
